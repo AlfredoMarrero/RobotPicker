@@ -1,5 +1,4 @@
 # RobotPicker
-RobotPicker
 
 There are 3 projects in the solution:
 1. RobotPicker.API (web API)
