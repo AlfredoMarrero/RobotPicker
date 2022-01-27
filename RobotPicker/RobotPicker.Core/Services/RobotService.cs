@@ -6,7 +6,9 @@ namespace RobotPicker.Core.Services
     public class RobotService : IRobotService
     {
         public readonly IRobotRepository _robotRepository;
+        public const int UnitsToCheckBatteryLevel = 10;
         public RobotService(IRobotRepository robotRepository) => _robotRepository = robotRepository;
+        
 
         /// <summary>
         /// GetBestRobotToTransportLoadAsync - time complexity O(n), space complexity O(n)
@@ -20,42 +22,31 @@ namespace RobotPicker.Core.Services
                 throw new ArgumentNullException(nameof(load));
             }
 
-            var robots = await _robotRepository.GetRobotsAsync();
+            var robots = await _robotRepository.GetRobotsAsync(); // space complexity O(n)
 
             if (robots == null)
             {
                 return null;
             }
 
-            // order robots by eucledean distance to load using a Min Heap
-            var minHeap = new PriorityQueue<RobotLoadInfo, RobotLoadInfo>(Comparer<RobotLoadInfo>.Create((RobotLoadInfo a, RobotLoadInfo b) => Compare(a, b)));
-
+            RobotLoadInfo bestRobotByDistance = new RobotLoadInfo(robots.ToArray()[0], load);
+            RobotLoadInfo bestRobotByBatteryLevel = null;
             foreach (var robot in robots) // time complexity O(n)
             {
-                minHeap.Enqueue(new RobotLoadInfo(robot, load), new RobotLoadInfo(robot, load)); // time complexity O(log(n))
-            }
-
-            var bestRobotToTransportLoad = minHeap.Peek();
-
-            while (minHeap.Count > 0 && minHeap.Peek().DistanceToGoal < 10) // while loop time complexity O(n)
-            {
-                var robot = minHeap.Dequeue(); // time complexity O(1)
-                if (robot.BatteryLevel > bestRobotToTransportLoad.BatteryLevel)
+                var robotInfo = new RobotLoadInfo(robot, load);
+                if (bestRobotByBatteryLevel == null && robotInfo.DistanceToGoal < bestRobotByDistance.DistanceToGoal)
                 {
-                    bestRobotToTransportLoad = robot;
+                    bestRobotByDistance = robotInfo;
+                }
+
+                if(robotInfo.DistanceToGoal < UnitsToCheckBatteryLevel && 
+                    (bestRobotByBatteryLevel == null || robotInfo.BatteryLevel > bestRobotByBatteryLevel.BatteryLevel))
+                {
+                    bestRobotByBatteryLevel = robotInfo;
                 }
             }
 
-            return bestRobotToTransportLoad;
-        }
-
-        private int Compare(RobotLoadInfo a, RobotLoadInfo b)
-        {
-            if (a.DistanceToGoal < b.DistanceToGoal)
-                return -1;
-            if (a.DistanceToGoal > b.DistanceToGoal)
-                return 1;
-            return 0;
+            return bestRobotByBatteryLevel ?? bestRobotByDistance;
         }
     }
 }
